@@ -19,7 +19,10 @@ export default function CalendarPage() {
 
   useEffect(() => {
     async function fetchData() {
+      console.log('Fetching availability for personId:', personId);
+
       try {
+        // Get instructor name
         const { data: person } = await supabase
           .from('persons')
           .select('name')
@@ -27,15 +30,19 @@ export default function CalendarPage() {
           .single();
         if (person) setPersonName(person.name);
 
+        // Get availability slots
         const { data, error } = await supabase
           .from('availabilities')
           .select('*')
-          .eq('person_id', personId)
+          .eq('personId', personId) // ← using 'personId' to match your table column
           .order('start_time', { ascending: true });
+
+        console.log('Supabase fetch result:', { data: data?.length || 0, error });
 
         if (error) throw error;
         setSlots(data || []);
       } catch (err: any) {
+        console.error('Fetch error:', err);
         setError(err.message || 'Failed to load availability');
       } finally {
         setLoading(false);
@@ -45,15 +52,25 @@ export default function CalendarPage() {
     fetchData();
   }, [personId]);
 
-  // Filter slots by selected day (compare year/month/date only)
+  // Debug: Log all slots with parsed dates
+  console.log('All availability slots:', slots.map(s => ({
+    id: s.id,
+    start_time: s.start_time,
+    end_time: s.end_time,
+    dateStr: format(new Date(s.start_time), 'yyyy-MM-dd')
+  })));
+
+  // Filter slots by selected day (timezone-safe string comparison)
   const daySlots = selectedDate
     ? slots.filter(slot => {
-        const slotDate = new Date(slot.start_time);
-        return (
-          slotDate.getFullYear() === selectedDate.getFullYear() &&
-          slotDate.getMonth() === selectedDate.getMonth() &&
-          slotDate.getDate() === selectedDate.getDate()
-        );
+        const slotDateStr = format(new Date(slot.start_time), 'yyyy-MM-dd');
+        const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
+        const matches = slotDateStr === selectedDateStr;
+
+        // Debug log for clicked day
+        console.log(`Checking slot ${slot.id}: ${slotDateStr} vs ${selectedDateStr} → ${matches ? 'MATCH' : 'NO MATCH'}`);
+
+        return matches;
       })
     : [];
 
@@ -81,17 +98,15 @@ export default function CalendarPage() {
 
         {!loading && !error && (
           <div className="bg-white p-6 rounded-xl shadow-md max-w-2xl mx-auto">
+            {/* Compact Month Calendar */}
             <Calendar
               onChange={(date) => setSelectedDate(date as Date)}
               value={selectedDate}
               tileClassName={({ date, view }) =>
                 view === 'month' && slots.some(slot => {
-                  const slotDate = new Date(slot.start_time);
-                  return (
-                    slotDate.getFullYear() === date.getFullYear() &&
-                    slotDate.getMonth() === date.getMonth() &&
-                    slotDate.getDate() === date.getDate()
-                  );
+                  const slotDateStr = format(new Date(slot.start_time), 'yyyy-MM-dd');
+                  const dateStr = format(date, 'yyyy-MM-dd');
+                  return slotDateStr === dateStr;
                 })
                   ? 'highlight-day'
                   : null
@@ -99,6 +114,7 @@ export default function CalendarPage() {
               className="mx-auto react-calendar-custom"
             />
 
+            {/* Selected Day Slots */}
             {selectedDate && (
               <div className="mt-10">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4 text-center">
@@ -111,7 +127,7 @@ export default function CalendarPage() {
                       <button
                         key={slot.id}
                         className="p-5 border border-gray-300 rounded-lg hover:border-amber-500 hover:bg-amber-50 text-center transition font-medium text-lg shadow-sm hover:shadow-md"
-                        onClick={() => alert(`Selected: ${format(new Date(slot.start_time), 'h:mm a')} – ${format(new Date(slot.end_time), 'h:mm a')}\nNext: Proceed to payment`)}
+                        onClick={() => alert(`Selected: ${format(new Date(slot.start_time), 'h:mm a')} – ${format(new Date(slot.end_time), 'h:mm a')}\nNext: Enter email & pay`)}
                       >
                         {format(new Date(slot.start_time), 'h:mm a')} – {format(new Date(slot.end_time), 'h:mm a')}
                       </button>

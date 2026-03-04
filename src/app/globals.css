@@ -62,3 +62,92 @@ body {
   background: #fef3c7 !important;
   font-weight: bold;
 }
+
+/* React Calendar - Force visibility, compact size, and theme */
+.react-calendar-custom {
+  border: none !important;
+  border-radius: 12px;
+  background-color: white;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  max-width: 350px;
+  margin: 0 auto;
+  font-family: 'DM Sans', sans-serif !important;
+}
+
+.react-calendar-custom .react-calendar__navigation {
+  margin-bottom: 1em;
+}
+
+.react-calendar-custom .react-calendar__navigation button {
+  color: #1f2937 !important;
+  font-weight: bold !important;
+  font-size: 1.1rem !important;
+  background: transparent !important;
+}
+
+.react-calendar-custom .react-calendar__navigation button:disabled {
+  background-color: #f3f4f6 !important;
+  color: #9ca3af !important;
+}
+
+.react-calendar-custom .react-calendar__month-view__weekdays__weekday {
+  color: #1f2937 !important;
+  font-weight: bold !important;
+  font-size: 0.9rem !important;
+  text-transform: uppercase;
+}
+
+.react-calendar-custom .react-calendar__tile {
+  color: #1f2937 !important;
+  font-weight: 500 !important;
+  font-size: 1rem !important;
+  padding: 0.75em 0.5em;
+  border-radius: 9999px !important;
+}
+
+.react-calendar-custom .react-calendar__tile--now {
+  background: #fefce8 !important;
+  color: #92400e !important;
+  font-weight: bold !important;
+}
+
+.react-calendar-custom .react-calendar__tile--active {
+  background: #d97706 !important;
+  color: white !important;
+  font-weight: bold !important;
+}
+
+.react-calendar-custom .react-calendar__tile:enabled:hover,
+.react-calendar-custom .react-calendar__tile:enabled:focus {
+  background-color: #f3f4f6 !important;
+}
+
+/* Highlight days with slots */
+.react-calendar-custom .highlight-day {
+  background: #fef3c7 !important;
+  font-weight: bold !important;
+  color: #92400e !important;
+  border-radius: 9999px !important;
+}
+
+/* Force all text visible */
+.react-calendar-custom *,
+.react-calendar-custom *::before,
+.react-calendar-custom *::after {
+  color: #1f2937 !important;
+}
+
+/* Highlight days with slots */
+.react-calendar-custom .highlight-day {
+  background: #fef3c7 !important;
+  font-weight: bold !important;
+  color: #92400e !important;
+  border-radius: 9999px !important;
+}
+
+/* Force all text visible */
+.react-calendar-custom *,
+.react-calendar-custom *::before,
+.react-calendar-custom *::after {
+  color: #1f2937 !important;
+}
