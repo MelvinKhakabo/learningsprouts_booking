@@ -5,7 +5,13 @@ import { useEffect, useState } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { supabase } from '@/lib/supabase';
-import { format } from 'date-fns';
+import { format, addHours, isBefore } from 'date-fns';
+import dynamic from 'next/dynamic';
+
+// Dynamic import for Paystack (client-only)
+const PaystackPop = dynamic(() => import('@paystack/inline-js'), {
+  ssr: false,
+});
 
 export default function CalendarPage() {
   const { personId } = useParams<{ personId: string }>();
@@ -16,13 +22,14 @@ export default function CalendarPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
+  const [email, setEmail] = useState('');
+  const [loadingPayment, setLoadingPayment] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchData() {
-      console.log('Fetching availability for personId:', personId);
-
       try {
-        // Get instructor name
         const { data: person } = await supabase
           .from('persons')
           .select('name')
@@ -30,19 +37,15 @@ export default function CalendarPage() {
           .single();
         if (person) setPersonName(person.name);
 
-        // Get availability slots
         const { data, error } = await supabase
           .from('availabilities')
           .select('*')
-          .eq('personId', personId) // ← using 'personId' to match your table column
+          .eq('personId', personId)
           .order('start_time', { ascending: true });
-
-        console.log('Supabase fetch result:', { data: data?.length || 0, error });
 
         if (error) throw error;
         setSlots(data || []);
       } catch (err: any) {
-        console.error('Fetch error:', err);
         setError(err.message || 'Failed to load availability');
       } finally {
         setLoading(false);
@@ -52,27 +55,110 @@ export default function CalendarPage() {
     fetchData();
   }, [personId]);
 
-  // Debug: Log all slots with parsed dates
-  console.log('All availability slots:', slots.map(s => ({
-    id: s.id,
-    start_time: s.start_time,
-    end_time: s.end_time,
-    dateStr: format(new Date(s.start_time), 'yyyy-MM-dd')
-  })));
+  // Generate 1-hour slots from a range
+  const generateHourSlots = (start: Date, end: Date) => {
+    const hourSlots = [];
+    let current = start;
+    while (isBefore(current, end)) {
+      const next = addHours(current, 1);
+      if (isBefore(next, end) || next.getTime() === end.getTime()) {
+        hourSlots.push({ start: current, end: next });
+      }
+      current = next;
+    }
+    return hourSlots;
+  };
 
-  // Filter slots by selected day (timezone-safe string comparison)
-  const daySlots = selectedDate
+  // Filter ranges for selected day (timezone-safe)
+  const dayRanges = selectedDate
     ? slots.filter(slot => {
         const slotDateStr = format(new Date(slot.start_time), 'yyyy-MM-dd');
         const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
-        const matches = slotDateStr === selectedDateStr;
-
-        // Debug log for clicked day
-        console.log(`Checking slot ${slot.id}: ${slotDateStr} vs ${selectedDateStr} → ${matches ? 'MATCH' : 'NO MATCH'}`);
-
-        return matches;
+        return slotDateStr === selectedDateStr;
       })
     : [];
+
+  // Generate all 1-hour slots for the day
+  const dayHourSlots = dayRanges.flatMap(range => generateHourSlots(new Date(range.start_time), new Date(range.end_time)));
+
+const handlePayment = async () => {
+  if (!email || !selectedSlot) {
+    setPaymentError('Please select a slot and enter your email');
+    return;
+  }
+
+  if (!/\S+@\S+\.\S+/.test(email)) {
+    setPaymentError('Please enter a valid email address');
+    return;
+  }
+
+  const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY;
+
+  if (!publicKey) {
+    setPaymentError('Payment system not configured');
+    console.error('Missing NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY');
+    return;
+  }
+
+  setLoadingPayment(true);
+  setPaymentError(null);
+
+  try {
+    console.log('Creating pending booking...');
+
+    const selected = dayHourSlots[selectedSlot];
+
+    const { data: booking, error: bookingError } = await supabase
+      .from('bookings')
+      .insert({
+        personId,
+        startTime: selected.start.toISOString(),
+        endTime: selected.end.toISOString(),
+        userEmail: email,
+        status: 'pending',
+        // paymentRef defaults to 'pending' in table
+      })
+      .select()
+      .single();
+
+    if (bookingError) {
+      console.error('Booking error:', bookingError);
+      throw bookingError;
+    }
+
+    console.log('Booking created:', booking.id);
+
+    console.log('Opening Paystack popup...');
+
+    // Correct usage: PaystackPop is the default export
+    const PaystackPopModule = await import('@paystack/inline-js');
+    const PaystackPop = PaystackPopModule.default;
+
+    const handler = PaystackPop.setup({
+      key: publicKey,
+      email: email,
+      amount: 1300 * 100, // Ksh 1,300 in cents
+      currency: 'KES',
+      ref: booking.id,
+      onClose: () => {
+        console.log('Payment popup closed');
+        setLoadingPayment(false);
+        alert('Payment cancelled');
+      },
+      callback: (response) => {
+        console.log('Payment success:', response);
+        alert(`Payment successful! Reference: ${response.reference}`);
+        setLoadingPayment(false);
+      },
+    });
+
+    handler.openIframe();
+  } catch (err: any) {
+    console.error('Payment process failed:', err);
+    setPaymentError(err.message || 'Payment failed - check console');
+    setLoadingPayment(false);
+  }
+};
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-12">
@@ -114,25 +200,70 @@ export default function CalendarPage() {
               className="mx-auto react-calendar-custom"
             />
 
-            {/* Selected Day Slots */}
+            {/* Selected Day Slots & Payment */}
             {selectedDate && (
               <div className="mt-10">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4 text-center">
                   Available times on {format(selectedDate, 'MMMM d, yyyy')}
                 </h2>
 
-                {daySlots.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {daySlots.map(slot => (
-                      <button
-                        key={slot.id}
-                        className="p-5 border border-gray-300 rounded-lg hover:border-amber-500 hover:bg-amber-50 text-center transition font-medium text-lg shadow-sm hover:shadow-md"
-                        onClick={() => alert(`Selected: ${format(new Date(slot.start_time), 'h:mm a')} – ${format(new Date(slot.end_time), 'h:mm a')}\nNext: Enter email & pay`)}
-                      >
-                        {format(new Date(slot.start_time), 'h:mm a')} – {format(new Date(slot.end_time), 'h:mm a')}
-                      </button>
-                    ))}
-                  </div>
+                {dayHourSlots.length > 0 ? (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                      {dayHourSlots.map((slot, index) => (
+                        <button
+                          key={index}
+                          className={`p-5 border rounded-lg text-center transition font-medium text-lg shadow-sm hover:shadow-md ${
+                            selectedSlot === index 
+                              ? 'border-amber-700 bg-amber-100 text-amber-900 font-bold' 
+                              : 'border-gray-300 hover:border-amber-500 hover:bg-amber-50'
+                          }`}
+                          onClick={() => setSelectedSlot(index)}
+                        >
+                          {format(slot.start, 'h:mm a')} – {format(slot.end, 'h:mm a')}
+                        </button>
+                      ))}
+                    </div>
+
+                    {selectedSlot !== null && (
+                      <div className="mt-8 p-6 bg-gray-50 border border-gray-200 rounded-xl">
+                        <h3 className="text-xl font-semibold text-gray-900 mb-4">
+                          Confirm Booking: {format(dayHourSlots[selectedSlot].start, 'h:mm a')} – {format(dayHourSlots[selectedSlot].end, 'h:mm a')}
+                        </h3>
+
+                        <div className="mb-6">
+                          <label htmlFor="email" className="block text-gray-700 font-medium mb-2">
+                            Your Email Address
+                          </label>
+                          <input
+                            type="email"
+                            id="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="example@email.com"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                            required
+                          />
+                        </div>
+
+                        <button
+                          onClick={handlePayment}
+                          disabled={!email || loadingPayment}
+                          className={`w-full py-5 px-8 rounded-xl text-white font-bold text-xl transition shadow-lg ${
+                            email && !loadingPayment
+                              ? 'bg-amber-600 hover:bg-amber-700'
+                              : 'bg-gray-400 cursor-not-allowed'
+                          }`}
+                        >
+                          {loadingPayment ? 'Processing...' : 'Confirm Booking & Pay Ksh 1,300'}
+                        </button>
+
+                        {paymentError && (
+                          <p className="mt-4 text-red-600 text-center">{paymentError}</p>
+                        )}
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <p className="text-gray-600 text-center">No available slots on this day.</p>
                 )}
