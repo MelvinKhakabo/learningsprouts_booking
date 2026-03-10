@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase'; 
+import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
 export default function Home() {
@@ -15,7 +15,7 @@ export default function Home() {
       try {
         const { data, error } = await supabase
           .from('persons')
-          .select('*')
+          .select('id, name, bio, imageUrl')
           .order('name', { ascending: true });
 
         if (error) throw error;
@@ -60,19 +60,43 @@ export default function Home() {
       )}
 
       {/* Instructor Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 w-full max-w-6xl">
         {persons.map((person) => (
           <div
             key={person.id}
-            className="bg-white p-10 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer border border-gray-200 flex flex-col items-center text-center hover:scale-105"
+            className="bg-white p-6 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer border border-gray-200 flex flex-col items-center text-center hover:scale-105"
             onClick={() => router.push(`/calendar/${person.id}`)}
           >
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
+            <div className="relative w-32 h-32 md:w-40 md:h-40 mb-4">
+              <img
+                src={person.imageUrl || '/images/placeholder.jpg'}
+                alt={person.name}
+                className="w-full h-full rounded-full object-cover border-4 border-gray-300 shadow-md grayscale hover:grayscale-0 transition-all duration-300"
+                onError={(e) => {
+                  e.currentTarget.src = '/images/placeholder.jpg';
+                  e.currentTarget.alt = 'Image not found';
+                }}
+              />
+            </div>
+
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
               {person.name}
             </h2>
-            <p className="text-gray-600 text-lg">
-              View availability and book a session
+
+            <p className="text-gray-600 text-sm md:text-base mb-6 px-2">
+              {person.bio || 'No bio available'}
             </p>
+
+            {/* Visible Button for "View availability..." */}
+            <button
+              className="px-6 py-3 bg-black text-white font-medium rounded-lg shadow-md hover:bg-amber-700 transition-all duration-300 text-base"
+              onClick={(e) => {
+                e.stopPropagation(); // Prevent double navigation if whole card is clickable
+                router.push(`/calendar/${person.id}`);
+              }}
+            >
+              View availability and book a session
+            </button>
           </div>
         ))}
       </div>
