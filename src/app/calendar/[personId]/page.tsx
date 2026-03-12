@@ -215,8 +215,8 @@ const handlePayment = async () => {
                           key={index}
                           className={`p-5 border rounded-lg text-center transition font-medium text-lg shadow-sm hover:shadow-md ${
                             selectedSlot === index 
-                              ? 'border-amber-700 bg-amber-100 text-amber-900 font-bold' 
-                              : 'border-gray-300 hover:border-amber-500 hover:bg-amber-50'
+                              ? 'border-amber-700 bg-white text-black font-bold' 
+                              : 'border-black hover:border-amber-500 hover:bg-amber-50'
                           }`}
                           onClick={() => setSelectedSlot(index)}
                         >
@@ -226,8 +226,8 @@ const handlePayment = async () => {
                     </div>
 
                     {selectedSlot !== null && (
-                      <div className="mt-8 p-6 bg-gray-50 border border-gray-200 rounded-xl">
-                        <h3 className="text-xl font-semibold text-gray-900 mb-4">
+                      <div className="mt-8 p-6 bg-white border border-black rounded-xl">
+                        <h3 className="text-xl font-semibold text- mb-4">
                           Confirm Booking: {format(dayHourSlots[selectedSlot].start, 'h:mm a')} – {format(dayHourSlots[selectedSlot].end, 'h:mm a')}
                         </h3>
 
