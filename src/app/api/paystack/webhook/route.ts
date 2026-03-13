@@ -67,10 +67,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true, message: 'internal error' }, { status: 500 });
   }
 }
-
-// Required for Next.js 13+ route handlers
-export const config = {
-  api: {
-    bodyParser: true,
-  },
-};
