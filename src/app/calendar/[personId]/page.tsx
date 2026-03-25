@@ -6,19 +6,22 @@ import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { supabase } from '@/lib/supabase';
 import { format, addHours, isBefore } from 'date-fns';
-import dynamic from 'next/dynamic';
 
 // Dynamic import for Paystack (client-only)
-const PaystackPop = dynamic(() => import('@paystack/inline-js'), {
-  ssr: false,
-});
+// const PaystackPop = dynamic(() => import('@paystack/inline-js'), {
+//   ssr: false,
+// });
+
+// const PaystackPop = (await import('@paystack/inline-js')).default;
+
+// const paystack = new PaystackPop();
 
 export default function CalendarPage() {
   const { personId } = useParams<{ personId: string }>();
   const router = useRouter();
 
   const [personName, setPersonName] = useState('Instructor');
-  const [slots, setSlots] = useState<any[]>([]);
+  const [slots, setSlots] = useState<Record<string, number | string | Date>[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -134,25 +137,28 @@ const handlePayment = async () => {
     const PaystackPopModule = await import('@paystack/inline-js');
     const PaystackPop = PaystackPopModule.default;
 
-    const handler = PaystackPop.setup({
+    const handler0 = new PaystackPop();
+
+
+    const handler = handler0.newTransaction({
       key: publicKey,
       email: email,
       amount: 1300 * 100, // Ksh 1,300 in cents
       currency: 'KES',
-      ref: booking.id,
-      onClose: () => {
+      reference: booking.id,
+      onCancel: () => {
         console.log('Payment popup closed');
         setLoadingPayment(false);
         alert('Payment cancelled');
       },
-      callback: (response) => {
+      onSuccess: (response: Record<string, string | number | undefined | null | null | Date>) => {
         console.log('Payment success:', response);
         alert(`Payment successful! Reference: ${response.reference}`);
         setLoadingPayment(false);
       },
     });
 
-    handler.openIframe();
+    // handler.openIframe();
   } catch (err: any) {
     console.error('Payment process failed:', err);
     setPaymentError(err.message || 'Payment failed - check console');
