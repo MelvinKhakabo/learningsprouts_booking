@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 export default function Home() {
-  const [persons, setPersons] = useState<any[]>([]);
+  const [persons, setPersons] = useState<Record<string, string>[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -68,7 +69,7 @@ export default function Home() {
             onClick={() => router.push(`/calendar/${person.id}`)}
           >
             <div className="relative w-32 h-32 md:w-40 md:h-40 mb-4">
-              <img
+              <Image
                 src={person.imageUrl || '/images/placeholder.jpg'}
                 alt={person.name}
                 className="w-full h-full rounded-full object-cover border-4 border-gray-300 shadow-md grayscale hover:grayscale-0 transition-all duration-300"
