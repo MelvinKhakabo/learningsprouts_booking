@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -6,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { supabase } from '@/lib/supabase';
-import { addHours, format, isBefore } from 'date-fns';
+import { format, addHours, isBefore } from 'date-fns';
 
 type AvailabilitySlot = {
   id?: string | number;
@@ -119,30 +118,37 @@ export default function CalendarPage() {
     return Math.round(personRateUsd * USD_TO_KES);
   }, [personRateUsd]);
 
-  const amountPaystack = useMemo(() => amountKes * 100, [amountKes]);
+const amountPaystack = useMemo(() => amountKes * 100, [amountKes]);
 
-  const dayRanges = useMemo(() => {
-    if (!selectedDate) return [];
+const now = useMemo(() => new Date(), []);
 
-    return slots.filter((slot) => {
-      const slotDate = toValidDate(slot.start_time);
-      if (!slotDate) return false;
+const dayRanges = useMemo(() => {
+  if (!selectedDate) return [];
 
-      return (
-        format(slotDate, 'yyyy-MM-dd') ===
-        format(selectedDate, 'yyyy-MM-dd')
-      );
-    });
-  }, [selectedDate, slots]);
+  return slots.filter((slot) => {
+    const start = toValidDate(slot.start_time);
+    const end = toValidDate(slot.end_time);
+
+    if (!start || !end) return false;
+    if (end <= now) return false;
+
+    return (
+      format(start, 'yyyy-MM-dd') ===
+      format(selectedDate, 'yyyy-MM-dd')
+    );
+  });
+}, [selectedDate, slots, now]);
 
   const dayHourSlots = useMemo(() => {
-    return dayRanges.flatMap((range) => {
-      const start = toValidDate(range.start_time);
-      const end = toValidDate(range.end_time);
+    return dayRanges
+      .flatMap((range) => {
+        const start = toValidDate(range.start_time);
+        const end = toValidDate(range.end_time);
 
-      if (!start || !end) return [];
-      return generateHourSlots(start, end);
-    });
+        if (!start || !end) return [];
+        return generateHourSlots(start, end);
+      })
+      .filter((slot) => slot.end > new Date());
   }, [dayRanges]);
 
   const handlePayment = async () => {
@@ -171,8 +177,8 @@ export default function CalendarPage() {
 
     const selected = dayHourSlots[selectedSlot];
 
-    if (!selected) {
-      setPaymentError('Selected slot is invalid');
+    if (!selected || selected.end <= new Date()) {
+      setPaymentError('This slot has already passed. Please choose another one.');
       return;
     }
 
@@ -233,30 +239,28 @@ export default function CalendarPage() {
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-12">
-      <div className="mx-auto max-w-4xl">
+      <div className="max-w-4xl mx-auto">
         <button
           onClick={() => router.back()}
-          className="mb-8 rounded-lg border border-gray-300 bg-white px-6 py-3 font-medium text-gray-800 transition hover:bg-gray-50"
+          className="mb-8 px-6 py-3 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-800 font-medium transition"
         >
           ← Back to instructors
         </button>
 
-        <h1 className="mb-8 text-center text-3xl font-bold text-gray-900">
+        <h1 className="text-3xl font-bold text-gray-900 mb-8 text-center">
           Availability for {personName}
         </h1>
 
-        {loading && (
-          <p className="py-12 text-center text-gray-600">Loading...</p>
-        )}
+        {loading && <p className="text-center text-gray-600 py-12">Loading...</p>}
 
         {error && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center text-lg text-red-800">
+          <div className="bg-red-50 border border-red-200 text-red-800 p-8 rounded-2xl text-center text-lg">
             {error}
           </div>
         )}
 
         {!loading && !error && (
-          <div className="mx-auto max-w-2xl rounded-xl bg-white p-6 shadow-md">
+          <div className="bg-white p-6 rounded-xl shadow-md max-w-2xl mx-auto">
             <Calendar
               onChange={(date) => {
                 setSelectedDate(date as Date);
@@ -267,35 +271,38 @@ export default function CalendarPage() {
               tileClassName={({ date, view }) =>
                 view === 'month' &&
                 slots.some((slot) => {
-                  const slotDate = toValidDate(slot.start_time);
-                  if (!slotDate) return false;
+                  const start = toValidDate(slot.start_time);
+                  const end = toValidDate(slot.end_time);
+
+                  if (!start || !end) return false;
+                  if (end <= new Date()) return false;
 
                   return (
-                    format(slotDate, 'yyyy-MM-dd') ===
+                    format(start, 'yyyy-MM-dd') ===
                     format(date, 'yyyy-MM-dd')
                   );
                 })
                   ? 'highlight-day'
                   : null
               }
-              className="react-calendar-custom mx-auto"
+              className="mx-auto react-calendar-custom"
             />
 
             {selectedDate && (
               <div className="mt-10">
-                <h2 className="mb-4 text-center text-xl font-semibold text-gray-900">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4 text-center">
                   Available times on {format(selectedDate, 'MMMM d, yyyy')}
                 </h2>
 
                 {dayHourSlots.length > 0 ? (
                   <>
-                    <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
                       {dayHourSlots.map((slot, index) => (
                         <button
                           key={index}
-                          className={`rounded-lg border p-5 text-center text-lg font-medium shadow-sm transition hover:shadow-md ${
+                          className={`p-5 border rounded-lg text-center transition font-medium text-lg shadow-sm hover:shadow-md ${
                             selectedSlot === index
-                              ? 'border-amber-700 bg-white font-bold text-black'
+                              ? 'border-amber-700 bg-white text-black font-bold'
                               : 'border-black hover:border-amber-500 hover:bg-amber-50'
                           }`}
                           onClick={() => {
@@ -303,17 +310,15 @@ export default function CalendarPage() {
                             setPaymentError(null);
                           }}
                         >
-                          {format(slot.start, 'h:mm a')} –{' '}
-                          {format(slot.end, 'h:mm a')}
+                          {format(slot.start, 'h:mm a')} – {format(slot.end, 'h:mm a')}
                         </button>
                       ))}
                     </div>
 
                     {selectedSlot !== null && dayHourSlots[selectedSlot] && (
-                      <div className="mt-8 rounded-xl border border-black bg-white p-6">
-                        <h3 className="mb-4 text-xl font-semibold">
-                          Confirm Booking:{' '}
-                          {format(dayHourSlots[selectedSlot].start, 'h:mm a')} –{' '}
+                      <div className="mt-8 p-6 bg-white border border-black rounded-xl">
+                        <h3 className="text-xl font-semibold mb-4">
+                          Confirm Booking: {format(dayHourSlots[selectedSlot].start, 'h:mm a')} –{' '}
                           {format(dayHourSlots[selectedSlot].end, 'h:mm a')}
                         </h3>
 
@@ -327,7 +332,7 @@ export default function CalendarPage() {
                         <div className="mb-6">
                           <label
                             htmlFor="email"
-                            className="mb-2 block font-medium text-gray-700"
+                            className="block text-gray-700 font-medium mb-2"
                           >
                             Your Email Address
                           </label>
@@ -337,7 +342,7 @@ export default function CalendarPage() {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="example@email.com"
-                            className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
                             required
                           />
                         </div>
@@ -345,10 +350,10 @@ export default function CalendarPage() {
                         <button
                           onClick={handlePayment}
                           disabled={!email || loadingPayment || amountKes <= 0}
-                          className={`w-full rounded-xl px-8 py-5 text-xl font-bold text-white transition shadow-lg ${
+                          className={`w-full py-5 px-8 rounded-xl text-white font-bold text-xl transition shadow-lg ${
                             email && !loadingPayment && amountKes > 0
                               ? 'bg-amber-600 hover:bg-amber-700'
-                              : 'cursor-not-allowed bg-gray-400'
+                              : 'bg-gray-400 cursor-not-allowed'
                           }`}
                         >
                           {loadingPayment
@@ -357,15 +362,13 @@ export default function CalendarPage() {
                         </button>
 
                         {paymentError && (
-                          <p className="mt-4 text-center text-red-600">
-                            {paymentError}
-                          </p>
+                          <p className="mt-4 text-red-600 text-center">{paymentError}</p>
                         )}
                       </div>
                     )}
                   </>
                 ) : (
-                  <p className="text-center text-gray-600">
+                  <p className="text-gray-600 text-center">
                     No available slots on this day.
                   </p>
                 )}
