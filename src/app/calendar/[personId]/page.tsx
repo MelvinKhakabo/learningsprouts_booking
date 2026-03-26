@@ -1,27 +1,57 @@
+
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { supabase } from '@/lib/supabase';
-import { format, addHours, isBefore } from 'date-fns';
+import { addHours, format, isBefore } from 'date-fns';
 
-// Dynamic import for Paystack (client-only)
-// const PaystackPop = dynamic(() => import('@paystack/inline-js'), {
-//   ssr: false,
-// });
+type AvailabilitySlot = {
+  id?: string | number;
+  personId?: string;
+  start_time: string | null;
+  end_time: string | null;
+};
 
-// const PaystackPop = (await import('@paystack/inline-js')).default;
+type HourSlot = {
+  start: Date;
+  end: Date;
+};
 
-// const paystack = new PaystackPop();
+type PersonRecord = {
+  name: string;
+  rateUsd: number | null;
+};
+
+type PaystackSuccessResponse = {
+  reference?: string;
+  [key: string]: unknown;
+};
+
+const USD_TO_KES = 127;
+
+function toValidDate(value: unknown): Date | null {
+  if (
+    value === null ||
+    value === undefined ||
+    typeof value === 'boolean'
+  ) {
+    return null;
+  }
+
+  const date = new Date(value as string | number | Date);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
 
 export default function CalendarPage() {
   const { personId } = useParams<{ personId: string }>();
   const router = useRouter();
 
   const [personName, setPersonName] = useState('Instructor');
-  const [slots, setSlots] = useState<Record<string, number | string | Date>[]>([]);
+  const [personRateUsd, setPersonRateUsd] = useState<number | null>(null);
+  const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -33,23 +63,32 @@ export default function CalendarPage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const { data: person } = await supabase
+        const { data: person, error: personError } = await supabase
           .from('persons')
-          .select('name')
+          .select('name, rateUsd')
           .eq('id', personId)
-          .single();
-        if (person) setPersonName(person.name);
+          .single<PersonRecord>();
 
-        const { data, error } = await supabase
+        if (personError) throw personError;
+
+        if (person) {
+          setPersonName(person.name);
+          setPersonRateUsd(person.rateUsd);
+        }
+
+        const { data, error: availabilityError } = await supabase
           .from('availabilities')
           .select('*')
           .eq('personId', personId)
           .order('start_time', { ascending: true });
 
-        if (error) throw error;
-        setSlots(data || []);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load availability');
+        if (availabilityError) throw availabilityError;
+
+        setSlots((data as AvailabilitySlot[]) || []);
+      } catch (err: unknown) {
+        const message =
+          err instanceof Error ? err.message : 'Failed to load availability';
+        setError(message);
       } finally {
         setLoading(false);
       }
@@ -58,187 +97,238 @@ export default function CalendarPage() {
     fetchData();
   }, [personId]);
 
-  // Generate 1-hour slots from a range
-  const generateHourSlots = (start: Date, end: Date) => {
-    const hourSlots = [];
+  const generateHourSlots = (start: Date, end: Date): HourSlot[] => {
+    const hourSlots: HourSlot[] = [];
     let current = start;
+
     while (isBefore(current, end)) {
       const next = addHours(current, 1);
+
       if (isBefore(next, end) || next.getTime() === end.getTime()) {
         hourSlots.push({ start: current, end: next });
       }
+
       current = next;
     }
+
     return hourSlots;
   };
 
-  // Filter ranges for selected day (timezone-safe)
-  const dayRanges = selectedDate
-    ? slots.filter(slot => {
-        const slotDateStr = format(new Date(slot.start_time), 'yyyy-MM-dd');
-        const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
-        return slotDateStr === selectedDateStr;
-      })
-    : [];
+  const amountKes = useMemo(() => {
+    if (personRateUsd === null || personRateUsd <= 0) return 0;
+    return Math.round(personRateUsd * USD_TO_KES);
+  }, [personRateUsd]);
 
-  // Generate all 1-hour slots for the day
-  const dayHourSlots = dayRanges.flatMap(range => generateHourSlots(new Date(range.start_time), new Date(range.end_time)));
+  const amountPaystack = useMemo(() => amountKes * 100, [amountKes]);
 
-const handlePayment = async () => {
-  if (!email || !selectedSlot) {
-    setPaymentError('Please select a slot and enter your email');
-    return;
-  }
+  const dayRanges = useMemo(() => {
+    if (!selectedDate) return [];
 
-  if (!/\S+@\S+\.\S+/.test(email)) {
-    setPaymentError('Please enter a valid email address');
-    return;
-  }
+    return slots.filter((slot) => {
+      const slotDate = toValidDate(slot.start_time);
+      if (!slotDate) return false;
 
-  const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY;
+      return (
+        format(slotDate, 'yyyy-MM-dd') ===
+        format(selectedDate, 'yyyy-MM-dd')
+      );
+    });
+  }, [selectedDate, slots]);
 
-  if (!publicKey) {
-    setPaymentError('Payment system not configured');
-    console.error('Missing NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY');
-    return;
-  }
+  const dayHourSlots = useMemo(() => {
+    return dayRanges.flatMap((range) => {
+      const start = toValidDate(range.start_time);
+      const end = toValidDate(range.end_time);
 
-  setLoadingPayment(true);
-  setPaymentError(null);
+      if (!start || !end) return [];
+      return generateHourSlots(start, end);
+    });
+  }, [dayRanges]);
 
-  try {
-    console.log('Creating pending booking...');
+  const handlePayment = async () => {
+    if (!email || selectedSlot === null) {
+      setPaymentError('Please select a slot and enter your email');
+      return;
+    }
+
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      setPaymentError('Please enter a valid email address');
+      return;
+    }
+
+    if (!personRateUsd || amountKes <= 0) {
+      setPaymentError('This instructor does not have a valid rate configured');
+      return;
+    }
+
+    const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY;
+
+    if (!publicKey) {
+      setPaymentError('Payment system not configured');
+      console.error('Missing NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY');
+      return;
+    }
 
     const selected = dayHourSlots[selectedSlot];
 
-    const { data: booking, error: bookingError } = await supabase
-      .from('bookings')
-      .insert({
-        personId,
-        startTime: selected.start.toISOString(),
-        endTime: selected.end.toISOString(),
-        userEmail: email,
-        status: 'pending',
-        // paymentRef defaults to 'pending' in table
-      })
-      .select()
-      .single();
-
-    if (bookingError) {
-      console.error('Booking error:', bookingError);
-      throw bookingError;
+    if (!selected) {
+      setPaymentError('Selected slot is invalid');
+      return;
     }
 
-    console.log('Booking created:', booking.id);
+    setLoadingPayment(true);
+    setPaymentError(null);
 
-    console.log('Opening Paystack popup...');
+    try {
+      const { data: booking, error: bookingError } = await supabase
+        .from('bookings')
+        .insert({
+          personId,
+          startTime: selected.start.toISOString(),
+          endTime: selected.end.toISOString(),
+          userEmail: email,
+          status: 'pending',
+        })
+        .select()
+        .single();
 
-    // Correct usage: PaystackPop is the default export
-    const PaystackPopModule = await import('@paystack/inline-js');
-    const PaystackPop = PaystackPopModule.default;
+      if (bookingError) {
+        throw bookingError;
+      }
 
-    const handler0 = new PaystackPop();
+      const PaystackPopModule = await import('@paystack/inline-js');
+      const PaystackPop = PaystackPopModule.default ?? PaystackPopModule;
 
+      const popup = new PaystackPop();
 
-    const handler = handler0.newTransaction({
-      key: publicKey,
-      email: email,
-      amount: 1300 * 100, // Ksh 1,300 in cents
-      currency: 'KES',
-      reference: booking.id,
-      onCancel: () => {
-        console.log('Payment popup closed');
-        setLoadingPayment(false);
-        alert('Payment cancelled');
-      },
-      onSuccess: (response: Record<string, string | number | undefined | null | null | Date>) => {
-        console.log('Payment success:', response);
-        alert(`Payment successful! Reference: ${response.reference}`);
-        setLoadingPayment(false);
-      },
-    });
-
-    // handler.openIframe();
-  } catch (err: any) {
-    console.error('Payment process failed:', err);
-    setPaymentError(err.message || 'Payment failed - check console');
-    setLoadingPayment(false);
-  }
-};
+      popup.newTransaction({
+        key: publicKey,
+        email,
+        amount: amountPaystack,
+        currency: 'KES',
+        reference: booking.id,
+        onCancel: () => {
+          setLoadingPayment(false);
+          alert('Payment cancelled');
+        },
+        onSuccess: (response: PaystackSuccessResponse) => {
+          console.log('Payment success:', response);
+          alert(`Payment successful! Reference: ${response.reference ?? booking.id}`);
+          setLoadingPayment(false);
+        },
+        onError: (err: unknown) => {
+          console.error('Paystack error:', err);
+          setPaymentError('Payment failed - please try again');
+          setLoadingPayment(false);
+        },
+      });
+    } catch (err: unknown) {
+      console.error('Payment process failed:', err);
+      const message =
+        err instanceof Error ? err.message : 'Payment failed - check console';
+      setPaymentError(message);
+      setLoadingPayment(false);
+    }
+  };
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-12">
-      <div className="max-w-4xl mx-auto">
+      <div className="mx-auto max-w-4xl">
         <button
           onClick={() => router.back()}
-          className="mb-8 px-6 py-3 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-800 font-medium transition"
+          className="mb-8 rounded-lg border border-gray-300 bg-white px-6 py-3 font-medium text-gray-800 transition hover:bg-gray-50"
         >
           ← Back to instructors
         </button>
 
-        <h1 className="text-3xl font-bold text-gray-900 mb-8 text-center">
+        <h1 className="mb-8 text-center text-3xl font-bold text-gray-900">
           Availability for {personName}
         </h1>
 
-        {loading && <p className="text-center text-gray-600 py-12">Loading...</p>}
+        {loading && (
+          <p className="py-12 text-center text-gray-600">Loading...</p>
+        )}
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-800 p-8 rounded-2xl text-center text-lg">
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center text-lg text-red-800">
             {error}
           </div>
         )}
 
         {!loading && !error && (
-          <div className="bg-white p-6 rounded-xl shadow-md max-w-2xl mx-auto">
-            {/* Compact Month Calendar */}
+          <div className="mx-auto max-w-2xl rounded-xl bg-white p-6 shadow-md">
             <Calendar
-              onChange={(date) => setSelectedDate(date as Date)}
+              onChange={(date) => {
+                setSelectedDate(date as Date);
+                setSelectedSlot(null);
+                setPaymentError(null);
+              }}
               value={selectedDate}
               tileClassName={({ date, view }) =>
-                view === 'month' && slots.some(slot => {
-                  const slotDateStr = format(new Date(slot.start_time), 'yyyy-MM-dd');
-                  const dateStr = format(date, 'yyyy-MM-dd');
-                  return slotDateStr === dateStr;
+                view === 'month' &&
+                slots.some((slot) => {
+                  const slotDate = toValidDate(slot.start_time);
+                  if (!slotDate) return false;
+
+                  return (
+                    format(slotDate, 'yyyy-MM-dd') ===
+                    format(date, 'yyyy-MM-dd')
+                  );
                 })
                   ? 'highlight-day'
                   : null
               }
-              className="mx-auto react-calendar-custom"
+              className="react-calendar-custom mx-auto"
             />
 
-            {/* Selected Day Slots & Payment */}
             {selectedDate && (
               <div className="mt-10">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4 text-center">
+                <h2 className="mb-4 text-center text-xl font-semibold text-gray-900">
                   Available times on {format(selectedDate, 'MMMM d, yyyy')}
                 </h2>
 
                 {dayHourSlots.length > 0 ? (
                   <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                    <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
                       {dayHourSlots.map((slot, index) => (
                         <button
                           key={index}
-                          className={`p-5 border rounded-lg text-center transition font-medium text-lg shadow-sm hover:shadow-md ${
-                            selectedSlot === index 
-                              ? 'border-amber-700 bg-white text-black font-bold' 
+                          className={`rounded-lg border p-5 text-center text-lg font-medium shadow-sm transition hover:shadow-md ${
+                            selectedSlot === index
+                              ? 'border-amber-700 bg-white font-bold text-black'
                               : 'border-black hover:border-amber-500 hover:bg-amber-50'
                           }`}
-                          onClick={() => setSelectedSlot(index)}
+                          onClick={() => {
+                            setSelectedSlot(index);
+                            setPaymentError(null);
+                          }}
                         >
-                          {format(slot.start, 'h:mm a')} – {format(slot.end, 'h:mm a')}
+                          {format(slot.start, 'h:mm a')} –{' '}
+                          {format(slot.end, 'h:mm a')}
                         </button>
                       ))}
                     </div>
 
-                    {selectedSlot !== null && (
-                      <div className="mt-8 p-6 bg-white border border-black rounded-xl">
-                        <h3 className="text-xl font-semibold text- mb-4">
-                          Confirm Booking: {format(dayHourSlots[selectedSlot].start, 'h:mm a')} – {format(dayHourSlots[selectedSlot].end, 'h:mm a')}
+                    {selectedSlot !== null && dayHourSlots[selectedSlot] && (
+                      <div className="mt-8 rounded-xl border border-black bg-white p-6">
+                        <h3 className="mb-4 text-xl font-semibold">
+                          Confirm Booking:{' '}
+                          {format(dayHourSlots[selectedSlot].start, 'h:mm a')} –{' '}
+                          {format(dayHourSlots[selectedSlot].end, 'h:mm a')}
                         </h3>
 
+                        <p className="mb-2 text-gray-700">
+                          Rate: USD {personRateUsd?.toLocaleString() ?? 'N/A'}
+                        </p>
+                        <p className="mb-6 text-lg font-semibold text-gray-900">
+                          Amount due: KSh {amountKes.toLocaleString()}
+                        </p>
+
                         <div className="mb-6">
-                          <label htmlFor="email" className="block text-gray-700 font-medium mb-2">
+                          <label
+                            htmlFor="email"
+                            className="mb-2 block font-medium text-gray-700"
+                          >
                             Your Email Address
                           </label>
                           <input
@@ -247,31 +337,37 @@ const handlePayment = async () => {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="example@email.com"
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                            className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500"
                             required
                           />
                         </div>
 
                         <button
                           onClick={handlePayment}
-                          disabled={!email || loadingPayment}
-                          className={`w-full py-5 px-8 rounded-xl text-white font-bold text-xl transition shadow-lg ${
-                            email && !loadingPayment
+                          disabled={!email || loadingPayment || amountKes <= 0}
+                          className={`w-full rounded-xl px-8 py-5 text-xl font-bold text-white transition shadow-lg ${
+                            email && !loadingPayment && amountKes > 0
                               ? 'bg-amber-600 hover:bg-amber-700'
-                              : 'bg-gray-400 cursor-not-allowed'
+                              : 'cursor-not-allowed bg-gray-400'
                           }`}
                         >
-                          {loadingPayment ? 'Processing...' : 'Confirm Booking & Pay Ksh 1,300'}
+                          {loadingPayment
+                            ? 'Processing...'
+                            : `Confirm Booking & Pay KSh ${amountKes.toLocaleString()}`}
                         </button>
 
                         {paymentError && (
-                          <p className="mt-4 text-red-600 text-center">{paymentError}</p>
+                          <p className="mt-4 text-center text-red-600">
+                            {paymentError}
+                          </p>
                         )}
                       </div>
                     )}
                   </>
                 ) : (
-                  <p className="text-gray-600 text-center">No available slots on this day.</p>
+                  <p className="text-center text-gray-600">
+                    No available slots on this day.
+                  </p>
                 )}
               </div>
             )}
