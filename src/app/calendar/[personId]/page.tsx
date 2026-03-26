@@ -32,11 +32,7 @@ type PaystackSuccessResponse = {
 const USD_TO_KES = 127;
 
 function toValidDate(value: unknown): Date | null {
-  if (
-    value === null ||
-    value === undefined ||
-    typeof value === 'boolean'
-  ) {
+  if (value === null || value === undefined || typeof value === 'boolean') {
     return null;
   }
 
@@ -118,28 +114,30 @@ export default function CalendarPage() {
     return Math.round(personRateUsd * USD_TO_KES);
   }, [personRateUsd]);
 
-const amountPaystack = useMemo(() => amountKes * 100, [amountKes]);
+  const amountPaystack = useMemo(() => amountKes * 100, [amountKes]);
 
-const now = useMemo(() => new Date(), []);
+  const dayRanges = useMemo(() => {
+    if (!selectedDate) return [];
 
-const dayRanges = useMemo(() => {
-  if (!selectedDate) return [];
+    const now = new Date();
 
-  return slots.filter((slot) => {
-    const start = toValidDate(slot.start_time);
-    const end = toValidDate(slot.end_time);
+    return slots.filter((slot) => {
+      const start = toValidDate(slot.start_time);
+      const end = toValidDate(slot.end_time);
 
-    if (!start || !end) return false;
-    if (end <= now) return false;
+      if (!start || !end) return false;
+      if (end <= now) return false;
 
-    return (
-      format(start, 'yyyy-MM-dd') ===
-      format(selectedDate, 'yyyy-MM-dd')
-    );
-  });
-}, [selectedDate, slots, now]);
+      return (
+        format(start, 'yyyy-MM-dd') ===
+        format(selectedDate, 'yyyy-MM-dd')
+      );
+    });
+  }, [selectedDate, slots]);
 
   const dayHourSlots = useMemo(() => {
+    const now = new Date();
+
     return dayRanges
       .flatMap((range) => {
         const start = toValidDate(range.start_time);
@@ -148,7 +146,7 @@ const dayRanges = useMemo(() => {
         if (!start || !end) return [];
         return generateHourSlots(start, end);
       })
-      .filter((slot) => slot.end > new Date());
+      .filter((slot) => slot.end > now);
   }, [dayRanges]);
 
   const handlePayment = async () => {
@@ -171,7 +169,6 @@ const dayRanges = useMemo(() => {
 
     if (!publicKey) {
       setPaymentError('Payment system not configured');
-      console.error('Missing NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY');
       return;
     }
 
@@ -198,13 +195,10 @@ const dayRanges = useMemo(() => {
         .select()
         .single();
 
-      if (bookingError) {
-        throw bookingError;
-      }
+      if (bookingError) throw bookingError;
 
       const PaystackPopModule = await import('@paystack/inline-js');
       const PaystackPop = PaystackPopModule.default ?? PaystackPopModule;
-
       const popup = new PaystackPop();
 
       popup.newTransaction({
@@ -218,162 +212,199 @@ const dayRanges = useMemo(() => {
           alert('Payment cancelled');
         },
         onSuccess: (response: PaystackSuccessResponse) => {
-          console.log('Payment success:', response);
           alert(`Payment successful! Reference: ${response.reference ?? booking.id}`);
           setLoadingPayment(false);
         },
-        onError: (err: unknown) => {
-          console.error('Paystack error:', err);
-          setPaymentError('Payment failed - please try again');
+        onError: () => {
+          setPaymentError('Payment failed. Please try again.');
           setLoadingPayment(false);
         },
       });
     } catch (err: unknown) {
-      console.error('Payment process failed:', err);
       const message =
-        err instanceof Error ? err.message : 'Payment failed - check console';
+        err instanceof Error ? err.message : 'Payment failed. Please try again.';
       setPaymentError(message);
       setLoadingPayment(false);
     }
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 px-4 py-12">
-      <div className="max-w-4xl mx-auto">
+    <main className="page-shell min-h-screen px-4 py-10 sm:px-6 sm:py-14">
+      <div className="mx-auto max-w-5xl">
         <button
           onClick={() => router.back()}
-          className="mb-8 px-6 py-3 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-800 font-medium transition"
+          className="brand-button-soft mb-8 px-5 py-3 text-sm sm:text-base"
         >
           ← Back to instructors
         </button>
 
-        <h1 className="text-3xl font-bold text-gray-900 mb-8 text-center">
-          Availability for {personName}
-        </h1>
+        <div className="mb-8 text-center">
+          <p className="info-pill mb-4">Book with {personName}</p>
 
-        {loading && <p className="text-center text-gray-600 py-12">Loading...</p>}
+          <h1 className="section-heading text-3xl font-bold sm:text-4xl">
+            Choose a date and time
+          </h1>
+
+          <p className="section-subheading mx-auto mt-4 max-w-2xl text-base leading-7 sm:text-lg">
+            Select an available one-hour session and complete your booking below.
+          </p>
+        </div>
+
+        {loading && (
+          <p className="py-12 text-center text-lg text-[var(--text-secondary)]">
+            Loading availability...
+          </p>
+        )}
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-800 p-8 rounded-2xl text-center text-lg">
+          <div className="mx-auto max-w-2xl rounded-2xl border border-red-200 bg-[var(--danger-soft)] p-6 text-center text-red-700">
             {error}
           </div>
         )}
 
         {!loading && !error && (
-          <div className="bg-white p-6 rounded-xl shadow-md max-w-2xl mx-auto">
-            <Calendar
-              onChange={(date) => {
-                setSelectedDate(date as Date);
-                setSelectedSlot(null);
-                setPaymentError(null);
-              }}
-              value={selectedDate}
-              tileClassName={({ date, view }) =>
-                view === 'month' &&
-                slots.some((slot) => {
-                  const start = toValidDate(slot.start_time);
-                  const end = toValidDate(slot.end_time);
+          <div className="booking-shell mx-auto max-w-4xl p-5 sm:p-8">
+            <div className="grid gap-8 lg:grid-cols-[360px_minmax(0,1fr)] lg:items-start">
+              <div className="soft-panel rounded-[1.35rem] p-4 sm:p-5">
+                <Calendar
+                  onChange={(date) => {
+                    setSelectedDate(date as Date);
+                    setSelectedSlot(null);
+                    setPaymentError(null);
+                  }}
+                  value={selectedDate}
+                  tileClassName={({ date, view }) =>
+                    view === 'month' &&
+                    slots.some((slot) => {
+                      const start = toValidDate(slot.start_time);
+                      const end = toValidDate(slot.end_time);
 
-                  if (!start || !end) return false;
-                  if (end <= new Date()) return false;
+                      if (!start || !end) return false;
+                      if (end <= new Date()) return false;
 
-                  return (
-                    format(start, 'yyyy-MM-dd') ===
-                    format(date, 'yyyy-MM-dd')
-                  );
-                })
-                  ? 'highlight-day'
-                  : null
-              }
-              className="mx-auto react-calendar-custom"
-            />
+                      return (
+                        format(start, 'yyyy-MM-dd') ===
+                        format(date, 'yyyy-MM-dd')
+                      );
+                    })
+                      ? 'highlight-day'
+                      : null
+                  }
+                  className="react-calendar-custom"
+                />
+              </div>
 
-            {selectedDate && (
-              <div className="mt-10">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4 text-center">
-                  Available times on {format(selectedDate, 'MMMM d, yyyy')}
-                </h2>
+              <div>
+                {selectedDate ? (
+                  <div>
+                    <h2 className="section-heading text-center text-2xl font-bold sm:text-left">
+                      Available times on {format(selectedDate, 'MMMM d, yyyy')}
+                    </h2>
 
-                {dayHourSlots.length > 0 ? (
-                  <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-                      {dayHourSlots.map((slot, index) => (
-                        <button
-                          key={index}
-                          className={`p-5 border rounded-lg text-center transition font-medium text-lg shadow-sm hover:shadow-md ${
-                            selectedSlot === index
-                              ? 'border-amber-700 bg-white text-black font-bold'
-                              : 'border-black hover:border-amber-500 hover:bg-amber-50'
-                          }`}
-                          onClick={() => {
-                            setSelectedSlot(index);
-                            setPaymentError(null);
-                          }}
-                        >
-                          {format(slot.start, 'h:mm a')} – {format(slot.end, 'h:mm a')}
-                        </button>
-                      ))}
-                    </div>
+                    <p className="muted-copy mt-2 mb-6 text-center text-sm sm:text-left sm:text-base">
+                      Tap a time slot to continue.
+                    </p>
 
-                    {selectedSlot !== null && dayHourSlots[selectedSlot] && (
-                      <div className="mt-8 p-6 bg-white border border-black rounded-xl">
-                        <h3 className="text-xl font-semibold mb-4">
-                          Confirm Booking: {format(dayHourSlots[selectedSlot].start, 'h:mm a')} –{' '}
-                          {format(dayHourSlots[selectedSlot].end, 'h:mm a')}
-                        </h3>
+                    {dayHourSlots.length > 0 ? (
+                      <>
+                        <div className="slot-grid mb-8">
+                          {dayHourSlots.map((slot, index) => {
+                            const isSelected = selectedSlot === index;
 
-                        <p className="mb-2 text-gray-700">
-                          Rate: USD {personRateUsd?.toLocaleString() ?? 'N/A'}
-                        </p>
-                        <p className="mb-6 text-lg font-semibold text-gray-900">
-                          Amount due: KSh {amountKes.toLocaleString()}
-                        </p>
-
-                        <div className="mb-6">
-                          <label
-                            htmlFor="email"
-                            className="block text-gray-700 font-medium mb-2"
-                          >
-                            Your Email Address
-                          </label>
-                          <input
-                            type="email"
-                            id="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            placeholder="example@email.com"
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
-                            required
-                          />
+                            return (
+                              <button
+                                key={index}
+                                type="button"
+                                className={`slot-button ${isSelected ? 'slot-button-selected' : ''}`}
+                                onClick={() => {
+                                  setSelectedSlot(index);
+                                  setPaymentError(null);
+                                }}
+                              >
+                                {format(slot.start, 'h:mm a')} – {format(slot.end, 'h:mm a')}
+                              </button>
+                            );
+                          })}
                         </div>
 
-                        <button
-                          onClick={handlePayment}
-                          disabled={!email || loadingPayment || amountKes <= 0}
-                          className={`w-full py-5 px-8 rounded-xl text-white font-bold text-xl transition shadow-lg ${
-                            email && !loadingPayment && amountKes > 0
-                              ? 'bg-amber-600 hover:bg-amber-700'
-                              : 'bg-gray-400 cursor-not-allowed'
-                          }`}
-                        >
-                          {loadingPayment
-                            ? 'Processing...'
-                            : `Confirm Booking & Pay KSh ${amountKes.toLocaleString()}`}
-                        </button>
+                        {selectedSlot !== null && dayHourSlots[selectedSlot] && (
+                          <div className="booking-summary p-5 sm:p-6">
+                            <div className="mb-5">
+                              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                                Selected session
+                              </p>
+                              <h3 className="mt-2 text-xl font-bold text-[var(--text-primary)]">
+                                {format(dayHourSlots[selectedSlot].start, 'h:mm a')} –{' '}
+                                {format(dayHourSlots[selectedSlot].end, 'h:mm a')}
+                              </h3>
+                            </div>
 
-                        {paymentError && (
-                          <p className="mt-4 text-red-600 text-center">{paymentError}</p>
+                            <div className="mb-6 grid gap-3 sm:grid-cols-2">
+                              <div className="rounded-xl border border-[#eadfc9] bg-white px-4 py-3">
+                                <p className="text-sm text-[var(--text-muted)]">Rate</p>
+                                <p className="mt-1 text-lg font-bold text-[var(--text-primary)]">
+                                  USD {personRateUsd?.toLocaleString() ?? 'N/A'}
+                                </p>
+                              </div>
+
+                              <div className="rounded-xl border border-[#eadfc9] bg-white px-4 py-3">
+                                <p className="text-sm text-[var(--text-muted)]">Amount due</p>
+                                <p className="mt-1 text-lg font-bold text-[var(--text-primary)]">
+                                  KSh {amountKes.toLocaleString()}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="mb-5">
+                              <label htmlFor="email" className="field-label mb-2 block">
+                                Your email address
+                              </label>
+                              <input
+                                type="email"
+                                id="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                placeholder="example@email.com"
+                                className="field-input"
+                                required
+                              />
+                            </div>
+
+                            <button
+                              onClick={handlePayment}
+                              disabled={!email || loadingPayment || amountKes <= 0}
+                              className="brand-button w-full px-6 py-4 text-lg"
+                            >
+                              {loadingPayment
+                                ? 'Processing...'
+                                : `Confirm Booking & Pay KSh ${amountKes.toLocaleString()}`}
+                            </button>
+
+                            {paymentError && (
+                              <p className="mt-4 text-center text-sm font-medium text-red-600">
+                                {paymentError}
+                              </p>
+                            )}
+                          </div>
                         )}
+                      </>
+                    ) : (
+                      <div className="soft-panel rounded-2xl p-6 text-center">
+                        <p className="muted-copy">
+                          No available slots remain on this day.
+                        </p>
                       </div>
                     )}
-                  </>
+                  </div>
                 ) : (
-                  <p className="text-gray-600 text-center">
-                    No available slots on this day.
-                  </p>
+                  <div className="soft-panel rounded-2xl p-8 text-center">
+                    <p className="muted-copy text-base sm:text-lg">
+                      Select a date on the calendar to view available one-hour sessions.
+                    </p>
+                  </div>
                 )}
               </div>
-            )}
+            </div>
           </div>
         )}
       </div>

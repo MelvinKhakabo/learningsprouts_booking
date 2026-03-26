@@ -5,8 +5,22 @@ import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 
+type Person = {
+  id: string;
+  name: string;
+  bio: string | null;
+  imageUrl: string | null;
+};
+
+const roleMap: Record<string, string> = {
+  'Ms. Helena': 'Education & Policy',
+  'Ms. Kayla': 'Speaking Coach',
+  'Ms. Liliane': 'Events & Culture',
+  'Ms. Shorelle': 'Songwriter & Composer',
+};
+
 export default function Home() {
-  const [persons, setPersons] = useState<Record<string, string>[]>([]);
+  const [persons, setPersons] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -20,9 +34,11 @@ export default function Home() {
           .order('name', { ascending: true });
 
         if (error) throw error;
-        setPersons(data || []);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load instructors');
+        setPersons((data as Person[]) || []);
+      } catch (err: unknown) {
+        const message =
+          err instanceof Error ? err.message : 'Failed to load instructors';
+        setError(message);
       } finally {
         setLoading(false);
       }
@@ -32,74 +48,86 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-gray-50 flex flex-col items-center px-6 py-16 md:py-20">
-      {/* Welcome Section */}
-      <div className="text-center mb-16 max-w-4xl">
-        <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-5">
-          Welcome to Learning Sprouts Office Hours
-        </h1>
-        <p className="text-xl md:text-2xl text-gray-700 font-medium">
-          Book a session with one of our instructors below
-        </p>
-      </div>
+    <main className="page-shell min-h-screen px-5 py-14 sm:px-6 md:px-8 md:py-18">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-14 max-w-3xl text-center mx-auto">
+          <p className="info-pill mx-auto mb-5">Learning Sprouts Office Hours</p>
 
-      {/* Loading / Error / Empty States */}
-      {loading && (
-        <p className="text-center text-gray-600 text-xl py-10">Loading instructors...</p>
-      )}
+          <h1 className="section-heading text-4xl font-bold leading-tight sm:text-5xl">
+            Book a session with one of our instructors
+          </h1>
 
-      {error && (
-        <div className="w-full max-w-xl mx-auto bg-red-50 border border-red-200 text-red-700 p-6 rounded-xl text-center text-lg">
-          {error}
+          <p className="section-subheading mt-5 text-lg leading-8 sm:text-xl">
+            Explore each instructor, review availability, and reserve a session
+            in a calm, guided booking experience.
+          </p>
         </div>
-      )}
 
-      {!loading && !error && persons.length === 0 && (
-        <p className="text-center text-gray-600 text-xl py-10">
-          No instructors available at the moment.
-        </p>
-      )}
+        {loading && (
+          <p className="text-center text-lg text-[var(--text-secondary)] py-10">
+            Loading instructors...
+          </p>
+        )}
 
-      {/* Instructor Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 w-full max-w-6xl">
-        {persons.map((person) => (
-          <div
-            key={person.id}
-            className="bg-white p-6 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer border border-gray-200 flex flex-col items-center text-center hover:scale-105"
-            onClick={() => router.push(`/calendar/${person.id}`)}
-          >
-            <div className="relative w-32 h-32 md:w-40 md:h-40 mb-4">
-              <Image
-                src={person.imageUrl || '/images/placeholder.jpg'}
-                alt={person.name}
-                className="w-full h-full rounded-full object-cover border-4 border-gray-300 shadow-md grayscale hover:grayscale-0 transition-all duration-300"
-                onError={(e) => {
-                  e.currentTarget.src = '/images/placeholder.jpg';
-                  e.currentTarget.alt = 'Image not found';
-                }}
-              />
-            </div>
-
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
-              {person.name}
-            </h2>
-
-            <p className="text-gray-600 text-sm md:text-base mb-6 px-2">
-              {person.bio || 'No bio available'}
-            </p>
-
-            {/* Visible Button for "View availability..." */}
-            <button
-              className="px-6 py-3 bg-black text-white font-medium rounded-lg shadow-md hover:bg-amber-700 transition-all duration-300 text-base"
-              onClick={(e) => {
-                e.stopPropagation(); // Prevent double navigation if whole card is clickable
-                router.push(`/calendar/${person.id}`);
-              }}
-            >
-              View availability and book a session
-            </button>
+        {error && (
+          <div className="mx-auto max-w-xl rounded-2xl border border-red-200 bg-[var(--danger-soft)] p-6 text-center text-lg text-red-700">
+            {error}
           </div>
-        ))}
+        )}
+
+        {!loading && !error && persons.length === 0 && (
+          <p className="text-center text-lg text-[var(--text-secondary)] py-10">
+            No instructors available at the moment.
+          </p>
+        )}
+
+        {!loading && !error && persons.length > 0 && (
+          <div className="instructor-grid grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+            {persons.map((person) => (
+              <article
+                key={person.id}
+                className="instructor-card p-6 sm:p-7"
+                onClick={() => router.push(`/calendar/${person.id}`)}
+              >
+                <div className="instructor-image-wrap">
+                  <Image
+                    src={person.imageUrl || '/images/placeholder.jpg'}
+                    alt={person.name}
+                    fill
+                    sizes="(max-width: 640px) 128px, 144px"
+                    className="instructor-image"
+                  />
+                </div>
+
+                <h2 className="instructor-name mb-3 text-3xl font-bold">
+                  {person.name}
+                </h2>
+
+                <div className="instructor-role">
+                  {roleMap[person.name] || 'Instructor'}
+                </div>
+
+                <div className="instructor-bio-wrap px-1">
+                  <p className="instructor-bio text-base">
+                    {person.bio || 'No bio available yet.'}
+                  </p>
+                </div>
+
+                <div className="instructor-card-spacer" />
+
+                <button
+                  className="brand-button mt-2 w-full px-5 py-3.5 text-base"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push(`/calendar/${person.id}`);
+                  }}
+                >
+                  View availability
+                </button>
+              </article>
+            ))}
+          </div>
+        )}
       </div>
     </main>
   );
