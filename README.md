@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Learning Sprouts Programs Site
 
-## Getting Started
+Registration site for Learning Sprouts' year-round programs (AI & Coding,
+Public Speaking). Replaces the old `officehours.learningsprouts.school`
+1:1 instructor booking tool — this is being rebuilt from scratch as a
+program/cohort registration site, deployed to
+`programs.learningsprouts.school`.
 
-First, run the development server:
+## Stack
+
+- React + TypeScript + Vite
+- Tailwind CSS v4
+- React Router
+- Supabase (Postgres + RLS) for data
+- Paystack (inline popup) for payment
+- Resend (via Supabase Edge Function) for confirmation emails
+
+## Setup
 
 ```bash
+npm install
+cp .env.example .env.local   # fill in Supabase + Paystack public keys
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Project structure
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+src/
+  pages/        Home, AiCoding, PublicSpeaking, Register — one per route
+  components/   Shared UI (Navbar, Footer, Card, PricingTable, etc.)
+  lib/
+    supabase.ts Public Supabase client (anon key only — RLS-gated)
+    types.ts    Shared types mirroring the Supabase schema
+supabase/
+  schema.sql    Reference schema — run in the Supabase SQL editor
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Build phases
 
-## Learn More
+- [x] **Phase 0** — Vite scaffold, routing, Supabase client, env template
+- [ ] **Phase 1** — Supabase schema live (drop old tables, create new ones, seed data)
+- [ ] **Phase 2** — Shared design system + site shell
+- [ ] **Phase 3** — Static content pages wired to live Supabase data
+- [ ] **Phase 4** — Registration form + Paystack checkout + server-side verification
+- [ ] **Phase 5** — Resend confirmation emails via Edge Function
+- [ ] **Phase 6** — QA, mobile pass, domain cutover
+- [ ] **Phase 7** — Admin enrollment view (post-launch, optional)
 
-To learn more about Next.js, take a look at the following resources:
+## Security note
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The Supabase **service role key**, the Paystack **secret key**, and the
+**Resend API key** must never appear in this repo or in any `VITE_*` env
+var — those only belong in Supabase Edge Function secrets. Anything that
+verifies a payment or sends an email runs server-side in an Edge Function,
+not in the browser.
