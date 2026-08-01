@@ -6,6 +6,7 @@ import type {
   PricingPackage,
   ChampionshipSettings,
   AiCompetitionSettings,
+  RegistrationConfirmation,
 } from '@/lib/types';
 
 export type TrackWithData = Track & {

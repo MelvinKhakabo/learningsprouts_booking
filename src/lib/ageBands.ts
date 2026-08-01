@@ -15,7 +15,7 @@ export const AGE_BANDS: Record<AgeBandId, AgeBand> = {
 };
 
 // Maps a track's age range straight from Supabase to the right band.
-export function bandForAges(ageMin: number, ageMax: number): AgeBand {
+export function bandForAges(_ageMin: number, ageMax: number): AgeBand {
   if (ageMax <= 11) return AGE_BANDS.junior;
   if (ageMax <= 15) return AGE_BANDS.middle;
   return AGE_BANDS.senior;
