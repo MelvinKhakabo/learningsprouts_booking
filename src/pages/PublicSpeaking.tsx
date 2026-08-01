@@ -106,24 +106,28 @@ export default function PublicSpeaking() {
                         price: p.price,
                         currency: p.currency,
                       }))}
-                      highlightIndex={pricingForDelivery.length - 1}
                     />
                   </div>
                 );
               })}
 
               {track.cohorts.length > 0 && (
-                <div className="mt-6 flex flex-col gap-2">
-                  {track.cohorts.map((cohort) => (
-                    <Button
-                      key={cohort.id}
-                      to={`/register/${cohort.id}`}
-                      variant="marigold"
-                      className="justify-between"
-                    >
-                      Register — {DELIVERY_LABEL[cohort.delivery]} ({cohort.day_of_week})
-                    </Button>
-                  ))}
+                <div className="mt-6">
+                  <p className="mb-2 font-mono text-xs uppercase tracking-wide text-ink/50">
+                    Select a specific class to register
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    {track.cohorts.map((cohort) => (
+                      <Button
+                        key={cohort.id}
+                        to={`/register/${cohort.id}`}
+                        variant="marigold"
+                        className="justify-between"
+                      >
+                        Register — {DELIVERY_LABEL[cohort.delivery]} ({cohort.day_of_week})
+                      </Button>
+                    ))}
+                  </div>
                 </div>
               )}
             </Card>

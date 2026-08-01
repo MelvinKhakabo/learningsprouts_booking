@@ -4,23 +4,13 @@ type PricingRow = {
   currency: 'KSH' | 'USD';
 };
 
-export default function PricingTable({
-  rows,
-  highlightIndex,
-}: {
-  rows: PricingRow[];
-  highlightIndex?: number;
-}) {
+export default function PricingTable({ rows }: { rows: PricingRow[] }) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-      {rows.map((row, i) => (
+      {rows.map((row) => (
         <div
           key={row.classCount}
-          className={`rounded-2xl border p-5 text-center ${
-            i === highlightIndex
-              ? 'border-marigold bg-marigold/10'
-              : 'border-ink/10 bg-white/50'
-          }`}
+          className="rounded-2xl border border-ink/10 bg-white/50 p-5 text-center"
         >
           <p className="font-mono text-xs uppercase tracking-wide text-ink/60">
             {row.classCount}-Class Package

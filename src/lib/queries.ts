@@ -84,3 +84,47 @@ export async function getLatestAiCompetitionSettings(): Promise<AiCompetitionSet
   }
   return data;
 }
+export type CohortForRegistration = Cohort & { track: Track };
+
+export async function getCohortForRegistration(
+  cohortId: string
+): Promise<{ cohort: CohortForRegistration; pricing: PricingPackage[] } | null> {
+  const { data: cohort, error } = await supabase
+    .from('cohorts')
+    .select('*, track:tracks(*)')
+    .eq('id', cohortId)
+    .single();
+
+  if (error || !cohort) {
+    console.error('getCohortForRegistration error', error);
+    return null;
+  }
+
+  const { data: pricing, error: pricingError } = await supabase
+    .from('pricing_packages')
+    .select('*')
+    .eq('track_id', cohort.track_id)
+    .eq('delivery', cohort.delivery)
+    .order('class_count', { ascending: true });
+
+  if (pricingError) {
+    console.error('getCohortForRegistration: pricing error', pricingError);
+  }
+
+  return { cohort: cohort as CohortForRegistration, pricing: pricing ?? [] };
+}
+export async function getRegistrationConfirmation(
+  id: string
+): Promise<RegistrationConfirmation | null> {
+  const { data, error } = await supabase
+    .from('registration_confirmations')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    console.error('getRegistrationConfirmation error', error);
+    return null;
+  }
+  return data;
+}

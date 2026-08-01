@@ -119,7 +119,6 @@ export default function AiCoding() {
                           price: p.price,
                           currency: p.currency,
                         }))}
-                        highlightIndex={track.pricing.length - 1}
                       />
                     </div>
                   )}
@@ -127,7 +126,7 @@ export default function AiCoding() {
                   {upcomingCycles.length > 0 && (
                     <div className="mt-6">
                       <p className="font-mono text-xs uppercase tracking-wide text-ink/50">
-                        Upcoming Training Cycles
+                        Select any of the upcoming training cycles to register
                       </p>
                       <div className="mt-2 flex flex-col gap-2">
                         {upcomingCycles.map((cycle) => (

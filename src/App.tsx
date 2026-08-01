@@ -1,3 +1,4 @@
+import ThankYou from '@/pages/ThankYou';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import Navbar from '@/components/Navbar';
@@ -22,6 +23,7 @@ function AnimatedRoutes() {
         <Route path="/ai-coding" element={<PageWrap><AiCoding /></PageWrap>} />
         <Route path="/public-speaking" element={<PageWrap><PublicSpeaking /></PageWrap>} />
         <Route path="/register/:cohortId" element={<PageWrap><Register /></PageWrap>} />
+        <Route path="/thank-you/:registrationId" element={<PageWrap><ThankYou /></PageWrap>} />
       </Routes>
     </AnimatePresence>
   );

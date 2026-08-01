@@ -56,7 +56,7 @@ export type Registration = {
   parent_name: string;
   parent_email: string;
   parent_phone: string;
-  payment_status: 'pending' | 'confirmed' | 'failed';
+  payment_status: 'pending' | 'paid' | 'cancelled' | 'failed';
   paystack_reference: string | null;
   created_at: string;
   term_label: string | null; // snapshot at registration time
@@ -79,4 +79,29 @@ export type CycleWindow = {
   cycleNumber: number;
   startDate: string; // ISO date of first session
   sessionDates: string[]; // ISO dates, length === cohort.cycle_length
+};
+
+// AI/Coding competition settings mirror the championship settings, but separate for AI/Coding competitions.
+export type AiCompetitionSettings = {
+  id: string;
+  year: number;
+  name: string | null;
+  theme: string | null;
+  event_date: string | null;
+  venue: string | null;
+  registration_status: 'not_open' | 'open' | 'closed';
+};
+export type RegistrationConfirmation = {
+  id: string;
+  student_name: string;
+  term_label: string | null;
+  cycle_number: number | null;
+  session_dates: string[] | null;
+  payment_status: 'pending' | 'paid' | 'cancelled' | 'failed';
+  created_at: string;
+  track_name: string;
+  day_of_week: string;
+  start_time: string;
+  end_time: string;
+  delivery: 'in_person' | 'online';
 };
