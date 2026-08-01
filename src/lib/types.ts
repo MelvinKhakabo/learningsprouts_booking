@@ -1,5 +1,5 @@
-// Mirrors the Supabase schema proposed for the programs site.
-// Keep in sync with the SQL in /supabase/schema.sql once that's finalized.
+// Mirrors what is ACTUALLY LIVE in Supabase as of the end of Phase 1.
+// Keep in sync with supabase/schema.sql.
 
 export type Program = {
   id: string;
@@ -14,21 +14,25 @@ export type Track = {
   name: string;
   age_min: number;
   age_max: number;
-  delivery: 'in_person' | 'online';
   big_idea: string | null;
   final_outcome: string | null;
 };
 
+export type Delivery = 'in_person' | 'online';
+
 export type Cohort = {
   id: string;
   track_id: string;
-  term_label: string; // e.g. "Aug–Nov 2026"
-  day_of_week: string; // e.g. "Saturday"
-  start_time: string; // e.g. "12:00"
-  end_time: string; // e.g. "13:30"
-  start_date: string; // ISO date
+  delivery: Delivery;
+  term_label: string;
+  day_of_week: string;
+  start_time: string;
+  end_time: string;
+  start_date: string; // ISO date — for rolling cohorts, this is the series anchor date
   min_enrollment: number;
   status: 'open' | 'filling' | 'confirmed' | 'closed';
+  cycle_length: number | null; // set for rolling (AI/Coding) cohorts, null for term-based
+  paused_months: string | null; // e.g. 'December'
   office_hours_day: string | null;
   office_hours_start: string | null;
   office_hours_end: string | null;
@@ -37,12 +41,13 @@ export type Cohort = {
 export type PricingPackage = {
   id: string;
   track_id: string;
-  class_count: number; // 1, 4, 6, or 8
+  delivery: Delivery;
+  class_count: number; // 1, 4, 5 (AI/Coding) or 1, 4, 8 (Public Speaking)
   price: number;
   currency: 'KSH' | 'USD';
 };
 
-export type Enrollment = {
+export type Registration = {
   id: string;
   cohort_id: string;
   package_id: string;
@@ -54,4 +59,24 @@ export type Enrollment = {
   payment_status: 'pending' | 'confirmed' | 'failed';
   paystack_reference: string | null;
   created_at: string;
+  term_label: string | null; // snapshot at registration time
+  cycle_number: number | null; // AI/Coding only
+  session_dates: string[] | null; // exact class dates covered by this registration
+};
+
+export type ChampionshipSettings = {
+  id: string;
+  year: number;
+  theme: string | null;
+  event_date: string | null;
+  venue: string | null;
+  registration_status: 'not_open' | 'open' | 'closed';
+};
+
+// Helper: computes upcoming rolling cycles for an AI/Coding cohort.
+// Not stored in the DB — calculated on demand from the cohort's anchor data.
+export type CycleWindow = {
+  cycleNumber: number;
+  startDate: string; // ISO date of first session
+  sessionDates: string[]; // ISO dates, length === cohort.cycle_length
 };

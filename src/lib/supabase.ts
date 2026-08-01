@@ -8,7 +8,7 @@ export const supabase = createClient(
 );
 
 // NOTE: there is intentionally no admin/service-role client here.
-// Anything requiring the service role key (writing confirmed enrollments,
+// Anything requiring the service role key (writing confirmed registrations,
 // verifying Paystack transactions, sending Resend emails) belongs in a
 // Supabase Edge Function, never in frontend code — the service role key
 // must never ship to the browser.
