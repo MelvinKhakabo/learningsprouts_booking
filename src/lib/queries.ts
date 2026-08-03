@@ -6,7 +6,6 @@ import type {
   PricingPackage,
   ChampionshipSettings,
   AiCompetitionSettings,
-  RegistrationConfirmation,
 } from '@/lib/types';
 
 export type TrackWithData = Track & {
@@ -114,17 +113,15 @@ export async function getCohortForRegistration(
 
   return { cohort: cohort as CohortForRegistration, pricing: pricing ?? [] };
 }
-export async function getRegistrationConfirmation(
-  id: string
-): Promise<RegistrationConfirmation | null> {
-  const { data, error } = await supabase
-    .from('registration_confirmations')
-    .select('*')
-    .eq('id', id)
-    .single();
+export async function getRegistrationStatus(
+  registrationId: string
+): Promise<{ found: boolean; payment_status?: 'pending' | 'paid' | 'cancelled' | 'failed' } | null> {
+  const { data, error } = await supabase.functions.invoke('registration-status', {
+    body: { registrationId },
+  });
 
-  if (error) {
-    console.error('getRegistrationConfirmation error', error);
+  if (error || !data) {
+    console.error('getRegistrationStatus error', error);
     return null;
   }
   return data;
