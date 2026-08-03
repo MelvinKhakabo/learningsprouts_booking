@@ -2,11 +2,8 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CheckCircle2, Clock, XCircle } from 'lucide-react';
-import Card from '@/components/Card';
 import { getRegistrationConfirmation } from '@/lib/queries';
 import type { RegistrationConfirmation } from '@/lib/types';
-
-const DELIVERY_LABEL = { in_person: 'In-Person', online: 'Online' };
 
 const STATUS_CONTENT = {
   paid: {
@@ -79,27 +76,6 @@ export default function ThankYou() {
         <Icon className={`mx-auto ${status.iconClass}`} size={40} />
         <h1 className="mt-4 font-display text-2xl font-black">{status.title}</h1>
         <p className="mt-3 text-ink/70">{status.body}</p>
-
-        <Card className="mt-8 text-left">
-          <p className="font-mono text-xs uppercase tracking-wide text-ink/50">
-            Registration Details
-          </p>
-          <h2 className="mt-2 font-display text-xl font-black">
-            {confirmation.track_name}
-          </h2>
-          <p className="mt-1 text-sm text-ink/70">
-            {confirmation.student_name} · {DELIVERY_LABEL[confirmation.delivery]}
-          </p>
-          <p className="mt-1 text-sm text-ink/70">
-            {confirmation.day_of_week}s, {confirmation.start_time}–{confirmation.end_time}
-          </p>
-          {confirmation.term_label && (
-            <p className="mt-1 text-sm text-ink/70">{confirmation.term_label}</p>
-          )}
-          <p className="mt-4 font-mono text-xs text-ink/40">
-            Registration ID: {confirmation.id}
-          </p>
-        </Card>
       </motion.div>
     </main>
   );
