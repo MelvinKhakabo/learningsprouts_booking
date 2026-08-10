@@ -12,6 +12,12 @@ const DELIVERY_LABEL = { in_person: 'In-Person', online: 'Online' };
 const CONTACT_OPTIONS = ['WhatsApp', 'Email', 'Phone Call'];
 const CURRENCY_MAP: Record<'KSH' | 'USD', 'KES' | 'USD'> = { KSH: 'KES', USD: 'USD' };
 
+// Online packages are priced in USD. Kenya-based registrants pay the KES
+// equivalent instead, since Paystack only offers M-Pesa for KES-denominated
+// transactions — everyone else (and all in-person registrations, which are
+// already priced in KSH) pays via card as before.
+const USD_TO_KES_RATE = 130;
+
 type Step = 'form' | 'payment' | 'verifying' | 'closed' | 'failed';
 
 export default function Register() {
@@ -42,6 +48,20 @@ export default function Register() {
 
   const isKenya = country.trim().toLowerCase() === 'kenya';
   const selectedPackage = pricing.find((p) => p.id === selectedPackageId);
+
+  // Derived checkout values — the only thing that changes for online + Kenya.
+  const payingViaMpesa =
+    cohort?.delivery === 'online' && isKenya && selectedPackage?.currency === 'USD';
+  const checkoutAmount = selectedPackage
+    ? payingViaMpesa
+      ? Math.round(selectedPackage.price * USD_TO_KES_RATE)
+      : selectedPackage.price
+    : 0;
+  const checkoutCurrency: 'KES' | 'USD' = selectedPackage
+    ? payingViaMpesa
+      ? 'KES'
+      : CURRENCY_MAP[selectedPackage.currency]
+    : 'USD';
 
   useEffect(() => {
     if (!cohortId) return;
@@ -134,8 +154,8 @@ export default function Register() {
 
     openPaystackCheckout({
       email: parentEmail,
-      amount: selectedPackage.price,
-      currency: CURRENCY_MAP[selectedPackage.currency],
+      amount: checkoutAmount,
+      currency: checkoutCurrency,
       reference: paystackReference,
       onSuccess: (reference) => reconcilePayment(reference),
       onClose: () => reconcilePayment(paystackReference),
@@ -179,9 +199,15 @@ export default function Register() {
             {cohort.track.name} — {selectedPackage?.class_count}-Class Package
           </p>
           <p className="mt-1 font-display text-3xl font-black">
-            {selectedPackage?.currency === 'KSH' ? 'KSH ' : '$'}
-            {selectedPackage?.price.toLocaleString()}
+            {checkoutCurrency === 'KES' ? 'KSH ' : '$'}
+            {checkoutAmount.toLocaleString()}
           </p>
+          {payingViaMpesa && (
+            <p className="mt-1 text-xs text-ink/50">
+              Converted from ${selectedPackage?.price.toLocaleString()} at 1 USD = KSH{' '}
+              {USD_TO_KES_RATE} for M-Pesa payment.
+            </p>
+          )}
 
           {step === 'closed' && (
             <p className="mt-4 text-sm text-ink/60">
