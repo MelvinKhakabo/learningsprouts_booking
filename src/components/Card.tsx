@@ -24,7 +24,7 @@ export default function Card({
       viewport={{ once: true, margin: '-40px' }}
       transition={{ duration: 0.4, delay, ease: 'easeOut' }}
       whileHover={{ y: -4 }}
-      className={`rounded-3xl border p-6 shadow-sm transition-shadow hover:shadow-md ${TONE_STYLES[tone]} ${className}`}
+      className={`rounded-3xl border p-8 shadow-sm transition-shadow hover:shadow-md ${TONE_STYLES[tone]} ${className}`}
     >
       {children}
     </motion.div>

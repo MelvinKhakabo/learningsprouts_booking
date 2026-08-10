@@ -1,25 +1,40 @@
 import { motion } from 'framer-motion';
+import { MessageCircle } from 'lucide-react';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
 import AgeBadge from '@/components/AgeBadge';
 
+const WHATSAPP_MESSAGE = encodeURIComponent(
+  "Hello, I'd like to join the Learning Sprouts WhatsApp community"
+);
+const WHATSAPP_LINK = `https://wa.me/254719218992?text=${WHATSAPP_MESSAGE}`;
+
+function Eyebrow({ children }: { children: string }) {
+  return (
+    <p className="font-mono text-xs font-semibold uppercase tracking-widest text-marigold-dark">
+      {children}
+    </p>
+  );
+}
+
 export default function Home() {
   return (
-    <main>
-      <section className="mx-auto max-w-4xl px-6 pb-16 pt-24 text-center">
-        <motion.p
+    <main className="flex h-full flex-col">
+      {/* Hero */}
+      <section className="mx-auto max-w-3xl px-6 pb-16 pt-20">
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5 }}
-          className="font-mono text-sm uppercase tracking-widest text-ink/50"
+          className="text-center"
         >
-          Learning Sprouts Programs
-        </motion.p>
+          <Eyebrow>Learning Sprouts Programs</Eyebrow>
+        </motion.div>
         <motion.h1
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="mt-3 font-display text-5xl font-black tracking-tight sm:text-6xl"
+          className="mt-4 text-center font-display text-6xl font-black leading-[0.95] tracking-tight sm:text-7xl"
         >
           Future Skills.<br />Real Growth.
         </motion.h1>
@@ -27,80 +42,123 @@ export default function Home() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="mx-auto mt-5 max-w-xl text-ink/70"
+          className="mt-8 text-left text-lg text-ink/70"
         >
-          Year-round programs building the skills kids actually need — from
-          Scratch to public speaking to AI.
+          Learning Sprouts is a Kenya based future skills training provider
+          founded by Harvard University graduates. We offer research driven
+          programs that help students build academic excellence, creativity,
+          leadership, and real world problem solving skills.
         </motion.p>
       </section>
 
-      <section className="mx-auto max-w-5xl px-6 pb-24">
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-          <Card delay={0}>
-            <div className="flex flex-wrap items-center gap-2">
-              <AgeBadge bandId="junior" />
-              <AgeBadge bandId="middle" />
-              <AgeBadge bandId="senior" />
-            </div>
-            <h2 className="mt-4 font-display text-2xl font-black">Public Speaking</h2>
-            <p className="mt-2 text-sm text-ink/70">
-              Confidence, debate, and professional communication —
-              culminating in the annual Championship.
-            </p>
-            <Button to="/public-speaking" className="mt-6" variant="marigold">
-              Explore Labs
-            </Button>
-          </Card>
+      {/* Programs */}
+      <section className="border-t border-ink/10 bg-cream py-20">
+        <div className="mx-auto max-w-6xl px-6">
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-40px' }}
+            transition={{ duration: 0.4 }}
+            className="mb-14 text-center"
+          >
+            <Eyebrow>What We Offer</Eyebrow>
+            <h2 className="mt-2 font-display text-4xl font-black tracking-tight sm:text-5xl">
+              Explore Our Year-Long Programs
+            </h2>
+          </motion.div>
 
-          <Card delay={0.1}>
-            <div className="flex flex-wrap items-center gap-2">
-              <AgeBadge bandId="junior" />
-              <AgeBadge bandId="middle" />
-              <AgeBadge bandId="senior" />
-            </div>
-            <h2 className="mt-4 font-display text-2xl font-black">AI &amp; Coding</h2>
-            <p className="mt-2 text-sm text-ink/70">
-              Scratch, Python, and AI/ML tracks — each one building toward a
-              real, shareable project.
-            </p>
-            <Button to="/ai-coding" className="mt-6" variant="ink">
-              Explore Tracks
-            </Button>
-          </Card>
-        </div>
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+            <Card delay={0}>
+              <div className="flex flex-wrap items-center gap-2">
+                <AgeBadge bandId="junior" />
+                <AgeBadge bandId="middle" />
+                <AgeBadge bandId="senior" />
+              </div>
+              <h3 className="mt-5 font-display text-3xl font-black">Public Speaking</h3>
+              <p className="mt-3 text-base text-ink/70">
+                Confidence, debate, and professional communication —
+                culminating in the annual Championship.
+              </p>
+              <Button to="/public-speaking" className="mt-7" variant="marigold">
+                Explore Labs
+              </Button>
+            </Card>
 
-        {/* Matches the exact width of one grid column above: 50% minus
-            half the 1.5rem (gap-6) gutter, centered in the row. */}
-        <div className="mt-6 sm:mx-auto sm:w-[calc(50%-0.75rem)]">
-          <Card delay={0.2}>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-lavender px-3 py-1 text-xs font-semibold uppercase tracking-wide text-ink">
-                High School
-                <span className="font-mono font-normal normal-case tracking-normal opacity-70">
-                  13–18
+            <Card delay={0.1}>
+              <div className="flex flex-wrap items-center gap-2">
+                <AgeBadge bandId="junior" />
+                <AgeBadge bandId="middle" />
+                <AgeBadge bandId="senior" />
+              </div>
+              <h3 className="mt-5 font-display text-3xl font-black">AI &amp; Coding</h3>
+              <p className="mt-3 text-base text-ink/70">
+                Scratch, Python, and AI/ML tracks — each one building toward
+                a real, shareable project.
+              </p>
+              <Button to="/ai-coding" className="mt-7" variant="ink">
+                Explore Tracks
+              </Button>
+            </Card>
+
+            <Card delay={0.2}>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-lavender px-3 py-1 text-xs font-semibold uppercase tracking-wide text-ink">
+                  High School
+                  <span className="font-mono font-normal normal-case tracking-normal opacity-70">
+                    13–18
+                  </span>
                 </span>
-              </span>
+              </div>
               <motion.span
                 animate={{ opacity: [0.75, 1, 0.75] }}
                 transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
-                className="inline-flex items-center gap-1.5 rounded-full bg-marigold px-3 py-1 text-xs font-semibold text-cream"
+                className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-marigold px-3 py-1 text-xs font-semibold text-cream"
               >
                 Competition Date: 30th January 2027
               </motion.span>
+              <h3 className="mt-5 font-display text-3xl font-black">PUMaC Africa</h3>
+              <p className="mt-3 text-base text-ink/70">
+                Join Africa's first Ivy League Mathematics Competition
+                (PUMaC) with Learning Sprouts and Princeton University Math
+                Club.
+              </p>
+              <Button
+                href="https://pumac-africa.learningsprouts.school/"
+                className="mt-7"
+                variant="outline"
+              >
+                Explore Competition
+              </Button>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* WhatsApp community callout — flex-1 so it always reaches the footer */}
+      <section className="flex flex-1 items-center border-t border-ink/10 bg-peach/40 py-20">
+        <div className="mx-auto max-w-2xl px-6">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-40px' }}
+            transition={{ duration: 0.4 }}
+          >
+            <div className="text-center">
+              <Eyebrow>Stay Updated</Eyebrow>
+              <h2 className="mt-2 font-display text-4xl font-black tracking-tight sm:text-5xl">
+                Be the First to Know About Our Upcoming Programs
+              </h2>
             </div>
-            <h2 className="mt-4 font-display text-2xl font-black">PUMaC Africa</h2>
-            <p className="mt-2 text-sm text-ink/70">
-              Join Africa's first Ivy League Mathematics Competition (PUMaC)
-              with Learning Sprouts and Princeton University Math Club.
+            <p className="mt-6 text-left text-lg text-ink/70">
+              Join our WhatsApp community for early access to new programs,
+              open registration dates, and updates from the Learning Sprouts
+              team.
             </p>
-            <Button
-              href="https://pumac-africa.learningsprouts.school/"
-              className="mt-6"
-              variant="outline"
-            >
-              Explore Competition
+            <Button href={WHATSAPP_LINK} className="mt-8" variant="marigold">
+              <MessageCircle size={18} />
+              Join Our WhatsApp Community
             </Button>
-          </Card>
+          </motion.div>
         </div>
       </section>
     </main>

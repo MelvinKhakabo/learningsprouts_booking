@@ -28,6 +28,11 @@ export default function Button({
   const classes = `inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-bold uppercase tracking-wide transition-colors ${VARIANT_STYLES[variant]} ${className}`;
 
   if (to) return <Link to={to} className={classes}>{children}</Link>;
-  if (href) return <a href={href} className={classes}>{children}</a>;
+  if (href)
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" className={classes}>
+        {children}
+      </a>
+    );
   return <button onClick={onClick} className={classes}>{children}</button>;
 }

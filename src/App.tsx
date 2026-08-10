@@ -37,6 +37,7 @@ function PageWrap({ children }: { children: React.ReactNode }) {
       animate="animate"
       exit="exit"
       transition={{ duration: 0.3, ease: 'easeInOut' }}
+      className="h-full"
     >
       {children}
     </motion.div>
