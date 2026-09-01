@@ -82,8 +82,9 @@ export default function Home() {
               </h3>
 
               <p className="mt-3 text-base text-ink/70">
-                Confidence, debate, and professional communication —
-                culminating in the annual Championship.
+                Confidence, debate, and professional communication skills,
+                culminating in the annual Championship. Open to students
+                across all age groups.
               </p>
 
               <div className="mt-auto pt-8">
@@ -109,8 +110,8 @@ export default function Home() {
               </h3>
 
               <p className="mt-3 text-base text-ink/70">
-                Scratch, Python, and AI/ML tracks — each one building toward
-                a real, shareable project.
+                Scratch, Python, and AI/ML tracks. Each track builds toward
+                a real, shareable project you can show off when it's done.
               </p>
 
               <div className="mt-auto pt-8">
